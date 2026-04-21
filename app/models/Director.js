@@ -24,4 +24,15 @@ const directorSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+directorSchema.virtual('movies', {
+    ref: 'Movie',
+    localField: '_id',
+    foreignField: 'director',
+    justOne: false
+});
+
+// Enable virtuals in JSON output
+directorSchema.set('toJSON', { virtuals: true });
+directorSchema.set('toObject', { virtuals: true });
+
 module.exports = mongoose.model("Director", directorSchema);
