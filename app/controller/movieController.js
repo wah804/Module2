@@ -1,12 +1,27 @@
 const Movie = require("../models/Movie");
 const messages = require("../utils/messages");
+const { buildQuery } = require("../utils/queryHelper");
 
-// @desc    Get all movies
+// @desc    Get all movies with filtering, select, sort, and pagination
 // @route   GET /api/v1/movies
+// @query   ?releaseYear[gte]=2000&boxOfficeMillions[gte]=100 — filter by range ($gte, $lte)
+// @query   ?genre[in]=Action,Sci-Fi                          — filter by genre ($in)
+// @query   ?select=title,genre                                — return only selected fields
+// @query   ?sort=-boxOfficeMillions                           — sort descending by box office
+// @query   ?page=1&limit=10                                   — pagination (defaults: page 1, limit 10)
 const getAllMovies = async (req, res) => {
     try {
-        const movies = await Movie.find({}).select("-__v").populate("director", "name _id");
-        res.status(200).json({ success: true, count: movies.length, data: movies });
+        // Populate director reference with only name and _id
+        const populateOpts = { path: "director", select: "name _id" };
+
+        const { data, pagination } = await buildQuery(Movie, req.query, populateOpts);
+
+        res.status(200).json({
+            success: true,
+            count: data.length,
+            pagination,
+            data
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: messages.SERVER_ERROR, error: error.message });
     }

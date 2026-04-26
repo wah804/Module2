@@ -3,6 +3,7 @@ const router = express.Router();
 const directorRoutes = require("./directorRoutes");
 const movieRoutes = require("./movieRoutes");
 
+// Health check for the main API route
 router.get("/", (req, res) => {
     res.status(200).json({ success: true, message: `${req.method} - Request made to Main API Route` });
 });

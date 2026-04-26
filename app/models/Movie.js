@@ -1,5 +1,10 @@
 const mongoose = require("mongoose");
 
+/**
+ * Movie Schema
+ * Fields: title (String), releaseYear (Number), genre (String enum),
+ *         boxOfficeMillions (Number), director (ObjectId ref to Director)
+ */
 const movieSchema = new mongoose.Schema({
     title: {
         type: String,

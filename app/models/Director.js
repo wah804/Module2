@@ -1,5 +1,10 @@
 const mongoose = require("mongoose");
 
+/**
+ * Director Schema
+ * Fields: name (String), age (Number), isActive (Boolean), awardsWon (Number)
+ * Virtual: movies — populated from Movie collection via director field
+ */
 const directorSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -24,6 +29,7 @@ const directorSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// Virtual field: populates associated movies for a director
 directorSchema.virtual('movies', {
     ref: 'Movie',
     localField: '_id',

@@ -1,12 +1,27 @@
 const Director = require("../models/Director");
 const messages = require("../utils/messages");
+const { buildQuery } = require("../utils/queryHelper");
 
-// @desc    Get all directors
+// @desc    Get all directors with filtering, select, sort, and pagination
 // @route   GET /api/v1/directors
+// @query   ?age[gte]=40&age[lte]=70    — filter by age range ($gte, $lte)
+// @query   ?isActive=true               — filter by active status
+// @query   ?select=name,awardsWon       — return only selected fields
+// @query   ?sort=-awardsWon             — sort descending by awards won
+// @query   ?page=1&limit=10             — pagination (defaults: page 1, limit 10)
 const getAllDirectors = async (req, res) => {
     try {
-        const directors = await Director.find({}).select("-__v").populate("movies", "title genre releaseYear");
-        res.status(200).json({ success: true, count: directors.length, data: directors });
+        // Populate virtual "movies" field with only title, genre, releaseYear
+        const populateOpts = { path: "movies", select: "title genre releaseYear" };
+
+        const { data, pagination } = await buildQuery(Director, req.query, populateOpts);
+
+        res.status(200).json({
+            success: true,
+            count: data.length,
+            pagination,
+            data
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: messages.SERVER_ERROR, error: error.message });
     }
