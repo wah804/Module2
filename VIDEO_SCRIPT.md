@@ -1,179 +1,139 @@
-# Video Presentation Script — Module 2: MongoDB Query Operators
+# Video Presentation Script — Module 3: Jest Unit Tests (Mocked)
 
 > **Estimated time:** 5–7 minutes  
-> **Before recording:** Make sure the server is running (`npm run dev`) and Postman is open.
+> **Before recording:** Have the project open in your IDE with the `tests/` folder visible in the sidebar. Make sure the terminal is ready.
 
 ---
 
-## PART 1 — Intro & Project Overview (~30 sec)
+## PART 1 — Intro (~20 sec)
 
-> **On screen:** Your IDE with the project file tree visible in the sidebar.
+> **On screen:** IDE with the project file tree visible, `tests/` folder expanded showing `directors.test.js` and `movies.test.js`.
 
 **Say:**
 
-"Hey, this is my Movie API project. Last week I built out two Mongoose models — Director and Movie — with full CRUD and a relationship between them. This week I'm expanding the getAll endpoints on both collections with MongoDB query operators, field selection, sorting, and pagination — all done at the database level through RESTful query strings."
+"Hey, this week I'm writing mocked Jest unit tests for my Movie API. I'm testing the new query operator features I added last week — specifically field selection, pagination, and sorting — on both the Directors and Movies endpoints. All 12 tests are fully mocked, meaning no real database connection is needed to run them."
 
 ---
 
-## PART 2 — Project Structure (~30 sec)
+## PART 2 — Project Setup (~30 sec)
 
-> **On screen:** Expand the file tree in the sidebar so the full `app/` folder is visible.
+> **Open file:** `package.json`  
+> **Highlight:** the `devDependencies` block and the `"test"` script.
 
 **Say:**
 
-"Quick look at the project structure. Everything lives inside the `app` folder — models, controllers, routes, and utils. The key change this week is I added a new file: `queryHelper.js` inside `app/utils/`. This is a shared utility that both controllers import, so I'm not duplicating any query logic. I also updated `messages.js` with a new pagination error message."
+"First, I added two dev dependencies — `jest` for the test runner and `supertest` to make real HTTP requests to the Express app without needing to start the server manually. I also added the `test` script here which runs `jest --verbose` so we can see every individual test result. There's also a jest config block that tells Jest to look inside the `tests/` directory and use the node environment."
 
 ---
 
-## PART 3 — The Query Helper (Core Logic) (~1.5 min)
+## PART 3 — How Mocking Works (~45 sec)
 
-> **Open file:** `app/utils/queryHelper.js`
+> **Open file:** `tests/directors.test.js`  
+> **Scroll to the top — lines 1–15 (imports and jest.mock)**
 
 **Say:**
 
-"This is the heart of the changes — `queryHelper.js`. It exports one function called `buildQuery` that takes three arguments: the Mongoose model, the raw `req.query` object from Express, and an optional populate config."
+"At the very top, I import `supertest` and the Express `app` — not `server.js`, just the app, so the database connection function is never called. Then on this line, `jest.mock('../app/models/Director')` — this tells Jest to intercept every single call to the Director model. No real MongoDB queries happen at all."
 
-> **Scroll to lines 21–24 (Step 1)**
+> **Scroll to the `createMockQuery` function (~lines 20–30)**
 
-"First, I copy the query object and strip out the reserved keys — `select`, `sort`, `page`, and `limit` — so they don't get treated as filter fields."
+**Say:**
 
-> **Scroll to lines 26–42 (Step 2)**
+"This is the key piece — the chainable mock query. Mongoose chains methods like `.select()`, `.sort()`, `.skip()`, `.limit()`, and `.populate()` together. Each one here uses `mockReturnThis()` so it returns itself and keeps the chain going. The last method, `.populate()`, uses `mockResolvedValue()` — it returns a Promise that resolves to our fake data. That's what the `await query` in the query helper picks up."
 
-"Next is where the MongoDB query operators come in. I convert the query string into a JSON string and use a regex replace to turn shorthand like `gte`, `lte`, and `in` into proper MongoDB operators — `$gte`, `$lte`, `$in`. For the `$in` operator specifically, I also split the comma-separated string into an array so Mongo can match against multiple values."
+> **Scroll to the `beforeEach` block**
 
-> **Scroll to lines 44–48 (Steps 3–4)**
+**Say:**
 
-"Then I count the total matching documents for pagination metadata and build the base `find()` query with the parsed filter."
-
-> **Scroll to lines 50–58 (Step 5)**
-
-"Here's the `select` — field selection. If the user passes `?select=name,age`, I split the commas into spaces and pass it to Mongoose's `.select()`. Otherwise I just exclude the `__v` field by default."
-
-> **Scroll to lines 60–68 (Step 6)**
-
-"For sorting, if the user passes `?sort=-awardsWon`, the dash means descending. If no sort is provided, I default to newest first using `createdAt`."
-
-> **Scroll to lines 70–76 (Step 7)**
-
-"Pagination — I parse `page` and `limit` from the query string, defaulting to page 1 and limit 10. I calculate the skip value and chain `.skip()` and `.limit()` onto the query."
-
-> **Scroll to lines 86–97 (Step 10)**
-
-"Finally, I build a pagination metadata object with the total count, current page, total pages, and boolean flags for `hasNextPage` and `hasPrevPage` — and return both the data and the pagination object back to the controller."
+"Before every test, I clear all mocks and reset the two model methods the query helper uses — `countDocuments`, which returns the total for pagination, and `find`, which kicks off the query chain."
 
 ---
 
-## PART 4 — Director Controller (~45 sec)
+## PART 4 — Directors Test Suite (~1.5 min)
 
-> **Open file:** `app/controller/directorController.js`
+> **Stay in:** `tests/directors.test.js`
+
+### Select Tests
+
+> **Scroll to `describe('Directors — Select & Field Filtering')`**
 
 **Say:**
 
-"Now let's see how the controller uses it. Open `directorController.js`. At the top on line 3, I'm importing `buildQuery` from the query helper."
+"The first describe block covers field selection. Test one hits `GET /api/v1/directors?select=name,awardsWon`. The mock returns objects with only `name` and `awardsWon`. I assert the response is 200, the first item has `name` and `awardsWon`, and does NOT have `age` or `isActive` — proving the select is working."
 
-> **Scroll to lines 5–11 (the comment block)**
+"Test two adds a filter — `isActive=true&select=name` — with a count of 1. I assert the response count is 1 and the data only has the `name` field."
 
-"I've documented all the supported query strings right here in the comments — `age[gte]`, `age[lte]`, `isActive`, `select`, `sort`, and `page`/`limit`."
+### Pagination Tests
 
-> **Scroll to lines 12–28 (the getAllDirectors function)**
+> **Scroll to `describe('Directors — Pagination')`**
 
-"The `getAllDirectors` function is now clean and simple. I define my populate options — I still want the virtual `movies` field to come back with title, genre, and releaseYear. Then I just call `buildQuery` with the Director model, `req.query`, and the populate options. It returns the data and pagination, which I include in the JSON response. All the rest of the CRUD methods — getById, create, update, delete — stay exactly the same as last week."
+**Say:**
+
+"The second describe block tests pagination. Test one sends `?page=1&limit=2` against 7 total documents. I assert the pagination object has `limit: 2`, `total: 7`, `totalPages: 4`, `hasNextPage: true`, and `hasPrevPage: false`."
+
+"Test two sends `?page=2&limit=2`. Here I go deeper — I grab the actual mock query object from `Director.find.mock.results` and assert that `.skip()` was called with `2` and `.limit()` was called with `2`. That directly verifies the skip and limit math is correct."
+
+### Sort Tests
+
+> **Scroll to `describe('Directors — Sorting')`**
+
+**Say:**
+
+"The third block tests sorting in both directions. Test one sends `?sort=age` — ascending — and asserts `.sort()` was called with the string `'age'`. Test two sends `?sort=-age` — the minus sign means descending — and asserts `.sort()` was called with `'-age'`. This confirms the query helper correctly passes the sort string to Mongoose."
 
 ---
 
-## PART 5 — Movie Controller (~30 sec)
+## PART 5 — Movies Test Suite (~1 min)
 
-> **Open file:** `app/controller/movieController.js`
+> **Open file:** `tests/movies.test.js`
 
 **Say:**
 
-"Same pattern in `movieController.js`. Line 3, I import `buildQuery`. The `getAllMovies` function on line 12 sets up populate options for the director reference — returning only name and ID — and calls `buildQuery` the same way. The comment block on lines 5 through 11 documents the movie-specific query strings like `releaseYear[gte]`, `genre[in]`, and `sort=-boxOfficeMillions`."
+"The movies test file follows the exact same pattern. Same mock structure, same three describe blocks — but using movie-specific fields."
+
+> **Scroll to `describe('Movies — Select & Field Filtering')`**
+
+"The select tests use `?select=title,genre` and `?genre[in]=Action,Sci-Fi&select=title` — testing the `$in` operator alongside field selection."
+
+> **Scroll to `describe('Movies — Pagination')`**
+
+"Pagination tests use a total of 8 movies with a limit of 3 — giving us 3 total pages. Page 2 asserts `skip(3)` and `limit(3)` were called."
+
+> **Scroll to `describe('Movies — Sorting')`**
+
+"Sort tests cover `?sort=releaseYear` ascending and `?sort=-boxOfficeMillions` descending — the most useful sort for a movie database."
 
 ---
 
-## PART 6 — Postman Demos (~2.5 min)
+## PART 6 — Running the Tests (~1 min)
 
-> **Switch to Postman.** Run each request and briefly show the response.
-
-### Demo 1: Basic getAll (pagination visible)
-
-> **URL:** `GET http://localhost:3000/api/v1/directors`
+> **Open the terminal in the IDE (or switch to an integrated terminal).**
 
 **Say:**
 
-"First, a basic get-all. Notice the response now includes a `pagination` object with the total count, current page, total pages, and the hasNext/hasPrev flags. Pagination is on by default — page 1, limit 10."
+"Now let's run everything. I'll type `npm test` in the terminal."
+
+> **Type and run:** `npm test`
+
+> **Wait for output — all 12 tests should pass.**
+
+**Say:**
+
+"You can see Jest running both test suites — directors and movies — with the `--verbose` flag so every test name is printed. All 12 are passing. Notice the test run time — it's nearly instant because nothing is hitting a real database. The mocks handle everything."
+
+> **Point to the summary line at the bottom (e.g. "12 passed, 2 suites")**
+
+"Two suites, 12 tests, all green. No database required."
 
 ---
 
-### Demo 2: Query Operators — $gte / $lte on Directors
+## PART 7 — Wrap-up (~20 sec)
 
-> **URL:** `GET http://localhost:3000/api/v1/directors?age[gte]=40&age[lte]=70`
-
-**Say:**
-
-"Here I'm filtering directors by age range using `$gte` and `$lte`. Only directors between 40 and 70 years old come back. This filtering happens at the database level — Mongoose translates the query string into a proper MongoDB filter."
-
----
-
-### Demo 3: Select on Directors
-
-> **URL:** `GET http://localhost:3000/api/v1/directors?select=name,awardsWon`
+> **Stay on the terminal output OR switch back to the file tree.**
 
 **Say:**
 
-"Now I'm using `select` to only return the `name` and `awardsWon` fields. You can see the response is much smaller — no age, no isActive, no timestamps. Just the fields I asked for."
-
----
-
-### Demo 4: Sort on Directors
-
-> **URL:** `GET http://localhost:3000/api/v1/directors?sort=-awardsWon`
-
-**Say:**
-
-"Sorting — the dash before `awardsWon` means descending order. So the most-awarded directors appear first."
-
----
-
-### Demo 5: Pagination on Directors
-
-> **URL:** `GET http://localhost:3000/api/v1/directors?page=1&limit=2`
-
-**Say:**
-
-"Pagination in action — I'm asking for page 1 with a limit of 2. You can see the count is 2 and `hasNextPage` is true, meaning there are more results on the next page."
-
----
-
-### Demo 6: Query Operators — $in on Movies
-
-> **URL:** `GET http://localhost:3000/api/v1/movies?genre[in]=Action,Sci-Fi`
-
-**Say:**
-
-"On the movies endpoint now. I'm using the `$in` operator to get movies that are either Action or Sci-Fi. The comma-separated values get split into an array by the query helper."
-
----
-
-### Demo 7: Combined query on Movies
-
-> **URL:** `GET http://localhost:3000/api/v1/movies?releaseYear[gte]=2000&sort=-boxOfficeMillions&select=title,genre,boxOfficeMillions&page=1&limit=5`
-
-**Say:**
-
-"Finally, here's everything combined on one request — filtering movies released after 2000, sorting by highest box office, selecting only three fields, and paginating with a limit of 5. All of these work together through the shared query helper."
-
----
-
-## PART 7 — README & Wrap-up (~30 sec)
-
-> **Open file:** `README.md` — scroll to the "Query Parameters" section around line 66.
-
-**Say:**
-
-"I also updated the README with full documentation of all the query parameters — the operator table, select, sort, pagination, and a combined example URL. The project structure diagram is also updated to show the new `queryHelper.js` file."
-
-"To summarize — both getAll endpoints now support MongoDB query operators `$gte`, `$lte`, and `$in` for filtering, `select` for field projection, `sort` for ordering, and pagination with page and limit. All the logic is shared through a single `queryHelper.js` utility to keep things DRY. The GitHub repo is linked. Thanks for watching."
+"To summarize — I have 12 mocked Jest tests split across two files. Each file covers three scenarios: field selection with select, pagination testing both skip and limit math, and sorting in ascending and descending order. Supertest makes the HTTP requests, Jest mocks intercept the Mongoose model, and `jest --verbose` prints every result clearly. The GitHub repo is linked. Thanks."
 
 ---
 
